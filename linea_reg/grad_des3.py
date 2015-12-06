@@ -1,7 +1,6 @@
 import numpy as np
 import sys
 import matplotlib.pyplot as plt
-#from sklearn.cross_validation import train_test_split
 import random
 
 class LinearRegression(object):
@@ -17,12 +16,12 @@ class LinearRegression(object):
         self.testsize = int(self.ratio * self.m)
 
         self.X_train, self.X_test, self.Y_train, self.Y_test = self.split(self.X, self.Y)
-       # print self.Y_test
-        self.alpha = 0.000006999999
+        
+        self.alpha = 0.0000059
         self.Beta = np.matrix( np.zeros((n+1))).getT()
         self.lr = np.identity(n+1)
         for i in range(n+1):
-            self.lr[i,i] = self.alpha/self.m
+            self.lr[i,i] = self.alpha/(self.m-self.testsize)
 
 
     def split(self, X, Y):
@@ -47,14 +46,13 @@ class LinearRegression(object):
         for i in range(self.m):
             if(i_testsize< self.testsize and i == self.testindex[i_testsize]):
                 
-#                print "test", i
+
                 for j in range(self.n+1):
                     X_test[i_test, j] = self.X[i,j]
                 Y_test[i_test, 0] = self.Y[i,0]
                 i_test = i_test + 1
                 i_testsize = i_testsize+1
             else:
- #               print "train", i
                 for j in range(self.n+1):
                     X_train[i_train, j] = self.X[i,j]
 
@@ -99,26 +97,26 @@ class LinearRegression(object):
         a = ((self.X_train*self.Beta - self.Y_train).getT())*self.X_train
         return (a*self.lr).getT()
     
-    def get_sqerr(self,a,b):
-        return (np.sum( np.square(a -b), axis = 0))[0,0]/(2*self.m)
+    def get_sqerr(self,a,b, size):
+        return (np.sum( np.square(a -b), axis = 0))[0,0]/(2*size)
 
     def test(self, X, Y, Beta):
-        return self.get_sqerr(self.X_test*self.Beta, self.Y_test)
+        return self.get_sqerr(self.X_test*self.Beta, self.Y_test, self.testsize)
 
     def train(self,Beta,X,Y,lr):
         i =0
-        meansqerror = self.get_sqerr(X*Beta,Y)
+        meansqerror = self.get_sqerr(X*Beta,Y,(self.m - self.testsize))
         preverror = meansqerror
         trainErr = []
         while (1):
             a = self.get_Grad()
             self.Beta = self.Beta - a
-            meansqerror = self.get_sqerr(self.X*self.Beta, self.Y)
+            meansqerror = self.get_sqerr(self.X*self.Beta, self.Y, (self.m - self.testsize))
             if i%100 == 0:
                 print meansqerror
             i = i+1
             trainErr.append(meansqerror)
-            if(meansqerror >= preverror or (meansqerror < preverror and abs(meansqerror - preverror) < 0.00000001)):
+            if((meansqerror >= preverror)or (meansqerror < preverror and abs(meansqerror - preverror) < 0.00000001) ):
                 print meansqerror, preverror
                 break
             else:
@@ -130,9 +128,9 @@ features = 13
 model = LinearRegression(f,features, 0.2)
 
 
-beta, trainErr, n_epoch = model.train(model.Beta,model.X_train, model.Y_train ,model.lr)
+beta, trainErr, n_epoch = model.train(model.Beta, model.X_train, model.Y_train ,model.lr)
 
-testErr = model.test(model.X_test, model.Y_test, model.Beta)
+testErr = model.test(model.X_test, model.Y_test, beta)
 
 print "Test error ", testErr
 
