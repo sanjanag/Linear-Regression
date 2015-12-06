@@ -100,17 +100,18 @@ class LinearRegression(object):
         return (a*self.lr).getT()
     
     def get_sqerr(self,a,b):
-        return (np.sum( np.square(a -b), axis = 0))[0,0]/(2*self.m)
+        return (np.sum( np.square(a -b), axis = 0))[0,0]/(len(a))
 
     def test(self, X, Y, Beta):
-        return self.get_sqerr(self.X_test*self.Beta, self.Y_test)
+        return self.get_sqerr(X*self.Beta, Y)
 
     def train(self,Beta,X,Y,lr):
         i =0
         meansqerror = self.get_sqerr(X*Beta,Y)
         preverror = meansqerror
         trainErr = []
-        while (1):
+        validErr = []
+        while (i<1000000):
             a = self.get_Grad()
             self.Beta = self.Beta - a
             meansqerror = self.get_sqerr(self.X*self.Beta, self.Y)
@@ -118,29 +119,34 @@ class LinearRegression(object):
                 print meansqerror
             i = i+1
             trainErr.append(meansqerror)
+            validErr.append(self.test(self.X_test, self.Y_test, self.Beta))
             if(meansqerror >= preverror or (meansqerror < preverror and abs(meansqerror - preverror) < 0.00000001)):
                 print meansqerror, preverror
                 break
             else:
                 preverror = meansqerror
-        return Beta,trainErr,i
+        return Beta,trainErr,validErr,i
 
 f = sys.argv[1]
 features = 13
 model = LinearRegression(f,features, 0.2)
 
 
-beta, trainErr, n_epoch = model.train(model.Beta,model.X_train, model.Y_train ,model.lr)
+beta, trainErr, validErr, n_epoch = model.train(model.Beta,model.X_train, model.Y_train ,model.lr)
 
-testErr = model.test(model.X_test, model.Y_test, model.Beta)
-
+testErr = model.test(model.X_test, model.Y_test, model.Beta) 
 print "Test error ", testErr
+print "Train error ",  model.test(model.X_train, model.Y_train, model.Beta)
 
-def plot_learning_curve(train_Err,n_epoch):
+def plot_learning_curve(train_Err,validErr, n_epoch):
     print "length of train_Err ", len(train_Err), "n_epoch ", n_epoch
-    plt.plot(np.arange(n_epoch), train_Err, 'b-')
+    plt.plot(np.arange(n_epoch), validErr, np.arange(n_epoch), train_Err,  'k--')
     plt.xlabel('epochs')
     plt.ylabel('error')
+    plt.legend(('Validation_Err', 'Train Error'), shadow=True, loc=(0.01, 0.55))
+    ltext = plt.gca().get_legend().get_texts()
+    plt.setp(ltext[0], fontsize=20, color='b')
+    plt.setp(ltext[1], fontsize=20, color='g')
     plt.show()
     
-plot_learning_curve(trainErr,n_epoch)
+plot_learning_curve(trainErr,validErr,n_epoch)
