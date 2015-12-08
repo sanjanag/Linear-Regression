@@ -1,8 +1,6 @@
 import numpy as np
 import sys
 import matplotlib.pyplot as plt
-import math
-#from sklearn.cross_validation import train_test_split
 import random
 
 class LinearRegression(object):
@@ -12,25 +10,70 @@ class LinearRegression(object):
         self.n = n
         self.m = 0
         self.ratio = ratio
-            
+    
     
         self.X, self.Y= self.read_data(fileName)
-        
-        self.mini = 150
+        self.testsize = int(self.ratio * self.m)
+
         self.X_train, self.X_test, self.Y_train, self.Y_test = self.split(self.X, self.Y)
-       # print self.Y_test
-        self.alpha = 0.0000007
+        
+        self.alpha = 0.0000059
         self.Beta = np.matrix( np.zeros((n+1))).getT()
         self.lr = np.identity(n+1)
         for i in range(n+1):
-            self.lr[i,i] = self.alpha/self.mini
+            self.lr[i,i] = self.alpha/(self.m-self.testsize)
 
-    def split(self, X, y):
-        indices = np.random.permutation(self.m)
-        self.testsize = int(self.ratio * self.m)
-        self.testindex = indices[0:self.testsize]
-        self.trainindex = indices[self.testsize+1:self.m]
-        return X[self.trainindex],X[self.testindex],y[self.trainindex],y[self.testindex]
+
+    def split(self, X, Y):
+
+        self.testindex = self.rand_index(self.m, self.testsize)
+        
+       # print self.testsize, self.testindex
+        X_train = np.ones((self.m - self.testsize, self.n+1))
+        X_test = np.ones((self.testsize, self.n+1))
+        Y_train = np.ones((self.m - self.testsize))
+        Y_test = np.ones((self.testsize))
+        
+        X_train = np.matrix(X_train)
+        X_test = np.matrix(X_test)
+        Y_train = np.matrix(Y_train).getT()
+        Y_test = np.matrix(Y_test).getT()
+
+        i_testsize = 0
+        i_test = 0
+        i_train = 0
+        
+        for i in range(self.m):
+            if(i_testsize< self.testsize and i == self.testindex[i_testsize]):
+                
+
+                for j in range(self.n+1):
+                    X_test[i_test, j] = self.X[i,j]
+                Y_test[i_test, 0] = self.Y[i,0]
+                i_test = i_test + 1
+                i_testsize = i_testsize+1
+            else:
+                for j in range(self.n+1):
+                    X_train[i_train, j] = self.X[i,j]
+
+                Y_train[i_train, 0] = self.Y[i,0]
+                i_train = i_train + 1
+
+        
+        return X_train, X_test, Y_train, Y_test
+
+
+    def rand_index(self, m, testsize):
+        l = []
+        while len(l) < self.testsize:
+            temp = random.randrange(0,m)
+            if temp in l:
+                pass
+            else:
+                l.append(temp)
+        l.sort()
+        return l
+        
     def read_data(self,f):
         f = open(f,'r')
         lines = f.readlines()
@@ -50,45 +93,36 @@ class LinearRegression(object):
             i = i+1
         return  np.matrix(X), np.matrix(Y).getT()
         
-    def get_Grad(self,X,y):
-        a = ((X*self.Beta - y).getT())*X
+    def get_Grad(self):
+        a = ((self.X_train*self.Beta - self.Y_train).getT())*self.X_train
         return (a*self.lr).getT()
     
-    def get_sqerr(self,a,b):
-        return (np.sum( np.square(a -b), axis = 0))[0,0]/(len(a))
+    def get_sqerr(self,a,b, size):
+        return (np.sum( np.square(a -b), axis = 0))[0,0]/(2*size)
 
     def test(self, X, Y, Beta):
-        return self.get_sqerr(X*self.Beta, Y)
+        return self.get_sqerr(self.X_test*self.Beta, self.Y_test, self.testsize)
 
     def train(self,Beta,X,Y,lr):
         i =0
-        meansqerror = self.get_sqerr(X*Beta,Y)
+        meansqerror = self.get_sqerr(X*Beta,Y,(self.m - self.testsize))
         preverror = meansqerror
         trainErr = []
         validErr = []
-        minibatch = 0
-        miniBatchNumber = math.ceil(len(self.Y_train)/self.mini*1.0)
         while (i<1000000):
-            minibatch = 0
-            while minibatch<miniBatchNumber:
-                miniBatchindex = np.arange(minibatch*self.mini,min(minibatch*self.mini+self.mini,self.m))
-                minibatch = minibatch + 1
-                mX = self.X_train[miniBatchindex]
-                mY = self.Y_train[miniBatchindex]
-                a = self.get_Grad(mX,mY)
-                self.Beta = self.Beta - a
-            meansqerror = self.get_sqerr(self.X_train*self.Beta,self.Y_train)
-            trainErr.append(meansqerror)
-            valid_Err = self.test(self.X_test, self.Y_test, self.Beta)
-            validErr.append(valid_Err)
-            if i%1000 == 0:
+            a = self.get_Grad()
+            self.Beta = self.Beta - a
+            meansqerror = self.get_sqerr(self.X*self.Beta, self.Y, (self.m - self.testsize))
+            if i%100 == 0:
                 print meansqerror
-            if(valid_Err >= 10*preverror or (valid_Err < preverror and abs(valid_Err - preverror) < 0.00000001)):
+            i = i+1
+            trainErr.append(meansqerror)
+            validErr.append(self.test(self.X_test, self.Y_test, self.Beta))
+            if(meansqerror >= preverror or (meansqerror < preverror and abs(meansqerror - preverror) < 0.00000001)):
+                print meansqerror, preverror
                 break
             else:
-                preverror = valid_Err
-            i = i+1
-            
+                preverror = meansqerror
         return Beta,trainErr,validErr,i
 
 f = sys.argv[1]
@@ -101,15 +135,13 @@ beta, trainErr, validErr, n_epoch = model.train(model.Beta,model.X_train, model.
 testErr = model.test(model.X_test, model.Y_test, model.Beta) 
 print "Test error ", testErr
 print "Train error ",  model.test(model.X_train, model.Y_train, model.Beta)
-#print model.X_test*model.Beta
-#print model.Y_test
-print model.get_sqerr(model.X*model.Beta,model.Y)
+
 def plot_learning_curve(train_Err,validErr, n_epoch):
     print "length of train_Err ", len(train_Err), "n_epoch ", n_epoch
-    plt.plot(np.arange(n_epoch), train_Err, np.arange(n_epoch), validErr,  'k--')
+    plt.plot(np.arange(n_epoch), validErr, np.arange(n_epoch), train_Err,  'k--')
     plt.xlabel('epochs')
     plt.ylabel('error')
-    plt.legend(( 'Train Error','Validation_Err',), shadow=True, loc=(0.01, 0.55))
+    plt.legend(('Validation_Err', 'Train Error'), shadow=True, loc=(0.01, 0.55))
     ltext = plt.gca().get_legend().get_texts()
     plt.setp(ltext[0], fontsize=20, color='b')
     plt.setp(ltext[1], fontsize=20, color='g')
