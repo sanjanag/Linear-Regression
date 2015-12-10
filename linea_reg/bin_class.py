@@ -2,14 +2,16 @@ import numpy as np
 import sys
 import matplotlib.pyplot as plt
 import math
+
 class LogisticRegression(object):
 
-    def __init__(self, trainfileName, testfileName, alpha):
-        self.alpha = alpha
+    def __init__(self, trainfileName, testfileName):
+        self.alpha = 0.0001
         self.features = 0
         
         self.read_data(trainfileName, testfileName)
         self.Beta = np.matrix( np.zeros((self.features+1))).getT()
+
     def read_data(self, testfile, trainfile):
         testfile = open(testfile, 'r')
         trainfile = open(trainfile, 'r')
@@ -35,8 +37,9 @@ class LogisticRegression(object):
             self.Y_train[i] = s[0]
             i = i+1
 
-        self.X_train = np.matrix(self.X_train)
+        self.X_train = np.matrix(self.X_train, dtype = int)
         self.Y_train = np.matrix(self.Y_train).getT()
+        
         i = 0
         for line in lines_test:
             s = " ".join(line.split(","))
@@ -54,41 +57,55 @@ class LogisticRegression(object):
         self.Y_test = np.matrix(self.Y_test).getT()
 
     def get_cost(self, a, b, size):
+        #print a.dtype, self.Beta.dtype
         c = a*self.Beta
         for i in range(c.size):
-            c[i,0] = 1/(1+math.exp(c[i,0]))
+            c[i,0] = 1/(1+math.exp(-c[i,0]))
         d = np.matrix(np.ones((size))).getT() - c
         b1 = np.matrix(np.ones((size))).getT() - b
-        c = np.log(c)
-        d = np.log(d)
+        #c = np.log(c)
+        for i in range(c.size):
+            if c[i,0] == 0:
+                c[i,0] = 999999
+            else:
+                c[i,0] = math.log(c[i,0])
+                
+        for i in range(d.size):
+            if d[i,0] == 0:
+                d[i,0] = 999999
+            else:
+                d[i,0] = math.log(d[i,0])
         return (((b.getT()*c)[0,0] + (b1.getT()*d)[0,0])*(-1))/size
 
     def get_Grad(self, X, Y):
         a = X*self.Beta
         for i in range(a.size):
-            a[i,0] = 1/(1+math.exp(a[i,0]))
+            a[i,0] = 1/(1+math.exp(-a[i,0]))
         a = ((a-Y).getT())*X
         return (a*self.lr).getT()
         
     def train(self, X, Y, size):
         costList = []
         cost = self.get_cost(X,Y,size)
+        print "initial cost ", cost
         prevcost = cost
         self.lr = np.identity(self.features+1)
         for i in range(self.features+1):
             self.lr[i,i] = self.alpha/(self.trainsize)
         i = 0
-        while(i < 1000000):
+        while(i < 10000):
             grad = self.get_Grad(X,Y)
+#            print grad
             self.Beta = self.Beta - grad
+ #           print self.Beta
             cost = self.get_cost(X,Y,size)
             costList.append(cost)
             if i%100 == 0:
                 print cost
-
+            
             i = i+1
             
-            if(cost >= prevcost or (cost < prevcost and abs(cost-prevcost) < .0000001)):
+            if(cost >= prevcost or (cost < prevcost and abs(cost - prevcost) < 0.0000001)):
                 print cost, prevcost
                 break
             else:
@@ -97,9 +114,9 @@ class LogisticRegression(object):
 
 trainf = sys.argv[1]
 testf = sys.argv[2]
-alpha = float(sys.argv[3])
+#alpha = float(sys.argv[3])
 
-model = LogisticRegression(trainf, testf, alpha)
+model = LogisticRegression(trainf, testf)
 
 Beta, costList, n_epoch = model.train(model.X_train, model.Y_train, model.trainsize)
 
