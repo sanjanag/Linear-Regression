@@ -11,8 +11,8 @@ class LogisticRegression(object):
         self.read_data(trainfileName, testfileName)
         self.Beta = np.random.normal(0,0.01,(self.features+1,1))
         self.threshold = 0.0
-        self.iter = 1000000
-        self.mini = 5
+        self.iter = 100000000
+        self.mini = 20
         self.l2 = 0.001
     def read_data(self, testfile, trainfile):
         testfile = open(testfile, 'r')
@@ -86,8 +86,9 @@ class LogisticRegression(object):
         n_batch = self.trainsize/self.mini
         while(i < self.iter):
             batch_index = i%n_batch
-            X_ind = X[self.mini*batch_index:self.mini*(batch_index+1)]
-            Y_ind = Y[self.mini*batch_index:self.mini*(batch_index+1)]
+            rand_ind = np.random.permutation(self.trainsize)[0:self.mini]
+            X_ind = X[rand_ind]
+            Y_ind = Y[rand_ind]
             grad = self.get_Grad(X_ind,Y_ind)
             #print "Updating"
             #print self.Beta.shape,grad.shape
@@ -96,7 +97,7 @@ class LogisticRegression(object):
             #print 
             cost = self.get_cost(X_ind,Y_ind,size)
             costList.append(cost)
-            if i%10000 == 0:
+            if i%100000 == 0:
                 print cost
             i = i+1
 
@@ -129,26 +130,34 @@ model = LogisticRegression(trainf, testf)
 if train == 1:
     Beta, costList, n_epoch = model.train(model.X_train, model.Y_train, model.trainsize)
 
-    f = open("res.txt",'w')
+    f = open("ares.txt",'w')
     for i in range(model.features+1):
         f.write("%s\n" % str(Beta[i,0]))
     f.close()
 else:
     Beta = np.ones((model.features+1,1))
-    f = open("res.txt",'r')
+    f = open("ares.txt",'r')
     lines = f.readlines()
     lines= [float(x.strip('\n')) for x in lines]
     Beta = np.asarray(lines)
 max_accuracy  = 0
 best_thresh = 0
-model.threshold = 0.51
-for i in range(0,200):
+model.threshold = 0.0
+start_thresh = 0
+update_thresh = 0.001
+a=0.51
+b = 0.53
+model.threshold = a
+for i in range(0,int((b-a)/update_thresh)):
     accuracy  = model.test(model.X_train, model.Y_train, model.trainsize, Beta)
-    model.threshold += 0.001
-    if accuracy >max_accuracy:
+    model.threshold += update_thresh
+    #print accuracy,model.threshold
+    if accuracy>max_accuracy:
+        start_thresh = model.threshold
+    if accuracy >=max_accuracy:
         max_accuracy = accuracy
         best_thresh = model.threshold
-print max_accuracy,best_thresh
+print max_accuracy,start_thresh,best_thresh
 model.threshold = best_thresh
 accuracy  = model.test(model.X_test, model.Y_test, model.testsize, Beta)
 print "Test accuracy"
